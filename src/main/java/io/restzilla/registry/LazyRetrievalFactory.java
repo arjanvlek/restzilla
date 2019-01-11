@@ -35,7 +35,9 @@ public class LazyRetrievalFactory implements CrudServiceFactory {
 
     public LazyRetrievalFactory(ApplicationContext applicationContext, CrudServiceFactory delegate) {
         this.repositories = new Repositories(applicationContext);
-        this.services = new Services(applicationContext);
+        Services services = new Services();
+        applicationContext.getAutowireCapableBeanFactory().autowireBean(services);
+        this.services = services;
         this.delegate = delegate;
     }
 

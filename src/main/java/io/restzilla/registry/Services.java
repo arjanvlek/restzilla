@@ -2,14 +2,13 @@ package io.restzilla.registry;
 
 import io.restzilla.service.CrudService;
 
-import java.util.Collection;
-import java.util.HashMap;
-import java.util.Map;
+import java.util.List;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentMap;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.BeanFactoryUtils;
-import org.springframework.context.ApplicationContext;
+import org.springframework.beans.factory.annotation.Autowired;
 
 /**
  * Registry for internal services.
@@ -22,13 +21,7 @@ class Services {
     
     private static final Logger LOGGER = LoggerFactory.getLogger(Services.class);
 
-    private final ApplicationContext applicationContext;
-    
-    private Map<Class<?>, CrudService<?, ?>> instances;
-
-    Services(ApplicationContext applicationContext) {
-        this.applicationContext = applicationContext;
-    }
+    private final ConcurrentMap<Class<?>, CrudService<?, ?>> instances = new ConcurrentHashMap<>();
     
     /**
      * Retrieves the service by entity class.
@@ -37,28 +30,18 @@ class Services {
      * @return the retrieved entity class
      */
     CrudService<?, ?> getByEntityClass(Class<?> entityClass) {
-        init(); // Lazy initialization
+        LOGGER.trace("Requested CrudService for entity class " + entityClass.getName());
         return instances.get(entityClass);
     }
 
-    private void init() {
-        if (instances == null) {
-            instances = new HashMap<Class<?>, CrudService<?, ?>>();
-            LOGGER.debug("Scanning classpath for service beans...");
-            for (CrudService<?, ?> service : getAllServices(applicationContext)) {
-                LOGGER.debug("Registering service {} for {}...", service.getClass(), service.getEntityClass());
-                instances.put(service.getEntityClass(), service);
-            }
-        }
-    }
+    @Autowired(required = false)
+    private void setCrudServices(List<CrudService<?, ?>> services) {
+        LOGGER.debug("Scanned classpath for service beans...");
 
-    private Collection<CrudService> getAllServices(ApplicationContext applicationContext) {
-        Map<String, CrudService> services = BeanFactoryUtils.beansOfTypeIncludingAncestors(applicationContext, CrudService.class);
-        while (applicationContext.getParent() != null) {
-            applicationContext = applicationContext.getParent();
-            services.putAll(applicationContext.getBeansOfType(CrudService.class));
-        }
-        return services.values();
+        services.forEach((service) -> {
+            LOGGER.debug("Registering service {} for {}...", service.getClass(), service.getEntityClass());
+            this.instances.putIfAbsent(service.getEntityClass(), service);
+        });
     }
     
 }

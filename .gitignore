@@ -3,5 +3,5 @@
 .project
 /build/
 /target/
-.idea/
+.idea
 *.iml
